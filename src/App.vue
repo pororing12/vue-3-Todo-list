@@ -9,9 +9,7 @@
     >
     <hr>
     <TodoSimpleForm @add-todo="addTodo"/>
-    <div v-if="!todos.length">
-      추가된 Todo가 없습니다
-    </div>
+    <div style="color: red">{{ error }}</div>
 
     <div v-if="!filteredTodos.length">
       There is noting to display
@@ -28,6 +26,7 @@
 import { ref, computed } from "vue";
 import TodoSimpleForm from '@/components/TodoSimpleForm.vue';
 import TodoList from "@/components/TodoList.vue";
+import axios from "axios"
 export default {
   name: "App",
   components: {
@@ -36,17 +35,60 @@ export default {
   },
   setup() {
     const todos = ref([]);
+    const error = ref("");
 
-    const addTodo = (todo) => {
-      todos.value.push(todo);
-    };
-
-    const ToggleTodo = (index) => {
-      todos.value[index].completed = !todos.value[index].completed
+    const getTodos = async () => {
+      try {
+        const res = await axios.get("http://localhost:3000/todos");
+        todos.value = res.data
+      } catch(err) {
+        console.log(err);
+      }
     }
 
-    const deleteTodo = (index) => {
-      todos.value.splice(index, 1);
+    getTodos();
+
+    const addTodo = async (todo) => {
+      //데이터베이스 Todo 저장
+      try {
+        error.value = "";
+        const res = await axios.post("http://localhost:3000/todos", {
+          subject: todo.subject,
+          completed: todo.completed
+        })
+        todos.value.push(res.data);
+      } catch(err) {
+        console.log(err)
+        error.value = "Something went wrong.";
+      }
+      // .then(res => {
+      //   todos.value.push(res.data);
+      // }).catch(err => {
+      //   console.log(err);
+      //   error.value = "something went wrong"
+      // })
+    };
+
+    const ToggleTodo = async (index) => {
+      const id = todos.value[index].id
+      try {
+        await axios.patch(`http://localhost:3000/todos/${id}`, {
+          completed: !todos.value[index].completed
+        })
+        todos.value[index].completed = !todos.value[index].completed
+      } catch(err) {
+        console.log(err);
+      }
+    }
+
+    const deleteTodo = async (index) => {
+      const id = todos.value[index].id
+      try {
+        await axios.delete(`http://localhost:3000/todos/${id}`);
+        todos.value.splice(index, 1);
+      } catch(err) {
+        console.log(err);
+      }
     }
 
     const searchText = ref("");
@@ -62,6 +104,8 @@ export default {
 
     return {
       todos,
+      error,
+      getTodos,
       addTodo,
       deleteTodo,
       ToggleTodo,
